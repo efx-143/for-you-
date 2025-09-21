@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Message For You</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1e021a, #0d001f, #2c021f);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            touch-action: manipulation;
+        }
+        .font-serif-display {
+            font-family: 'Playfair Display', serif;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        #message-container, #puzzle-container, #lock-container {
+             transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+        .hidden-view {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.9);
+            position: absolute;
+        }
+        #confetti-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .pickup-card {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, rgb(219, 39, 119), rgb(147, 51, 234));
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            user-select: none;
+            will-change: transform;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .action-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+            backdrop-filter: blur(5px);
+        }
+        .action-button:active {
+            transform: scale(0.9);
+        }
+        .key-input {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s ease;
+        }
+        .key-input:focus {
+            outline: none;
+            border-color: rgba(219, 39, 119, 0.5);
+            box-shadow: 0 0 15px rgba(219, 39, 119, 0.3);
+        }
+        .unlock-button {
+             background: linear-gradient(135deg, rgb(219, 39, 119), rgb(147, 51, 234));
+             transition: all 0.2s ease;
+        }
+        .unlock-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(219, 39, 119, 0.5);
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            transform: translate3d(0, 0, 0);
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="text-white">
+
+    <div id="app" class="w-full max-w-md p-4">
+        <div class="card rounded-2xl shadow-2xl p-8 text-center relative overflow-hidden min-h-[400px] flex items-center justify-center">
+            
+            <!-- Lock View -->
+            <div id="lock-container" class="w-full">
+                <h1 class="font-serif-display text-3xl font-bold mb-4">A Secret Key is Required</h1>
+                <p id="key-hint-text" class="text-gray-300 mb-6"></p>
+                <input type="text" id="key-input" class="key-input w-full p-3 rounded-lg text-center text-white placeholder-gray-400" placeholder="Enter the key...">
+                <p id="error-text" class="text-rose-400 h-4 mt-2 text-sm"></p>
+                <button id="unlock-btn" class="unlock-button w-full p-3 mt-2 rounded-lg font-bold text-lg">Unlock</button>
+            </div>
+
+            <!-- Puzzle View -->
+            <div id="puzzle-container" class="w-full hidden-view">
+                 <h1 class="font-serif-display text-3xl font-bold mb-4">A Few Things For You...</h1>
+                 <div id="card-stack" class="relative w-full max-w-xs h-48 mx-auto">
+                     <!-- Pickup Line Cards will be inserted here by JS -->
+                 </div>
+                 <p id="instructions-text" class="text-gray-400 mt-4 mb-2 text-sm italic">Click the buttons to go through the cards.</p>
+                 <div id="action-buttons" class="flex justify-center items-center gap-4 mt-2">
+                    <button id="nope-btn" class="action-button bg-rose-500/20 hover:bg-rose-500/40 text-rose-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <button id="yep-btn" class="action-button bg-pink-500/20 hover:bg-pink-500/40 text-pink-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 016.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Message View -->
+            <div id="message-container" class="w-full p-8 flex flex-col items-center justify-center hidden-view">
+                 <canvas id="confetti-canvas"></canvas>
+                 <div class="relative z-20">
+                    <h2 id="revealed-title" class="font-serif-display text-4xl font-bold mb-4"></h2>
+                    <p id="revealed-message" class="text-xl text-gray-200 leading-relaxed whitespace-pre-wrap min-h-[120px]"></p>
+                    <p id="revealed-from" class="text-lg mt-8 font-medium opacity-0"></p>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =================================================================
+        // --- CONFIGURATION ---
+        // INSTRUCTIONS:
+        // 1. Change the text inside the quotation marks below.
+        // 2. SECRET_KEY: The password your crush needs to enter.
+        // 3. KEY_HINT: A clue for the password!
+        // 4. PICKUP_LINES: The cards they will see after unlocking.
+        // 5. MESSAGE_TITLE, YOUR_MESSAGE, YOUR_NAME: The final revealed content.
+        // 6. Save the file and send it to them!
+        // =================================================================
+        const SECRET_KEY   = "vaishu"; // <-- CHANGE THIS to your secret password
+        const KEY_HINT     = "Hint: I LOVE ?"; // <-- CHANGE THIS to your hint
+
+        const PICKUP_LINES = [
+            "zheel ko kehte he lake zheel ko kehte hai lake why do you compare yourself with others when your lakho me ek",
+            "Chandi sona ek taraf tera hona ek taraf ek taraf teri aankhe jadu tona ek taraf",
+            "Are you a magician? Because whenever I look at you, everyone else disappears.",
+            "I'm not a photographer, but I can picture us together.",
+            "Do you have a map? I keep getting lost in your eyes.",
+            "If you were a vegetable, you'd be a cute-cumber.",
+            "There must be something wrong with my eyes, I can't take them off you.",
+            "I'm not even playing cards but somehow I pulled a Queen.",
+            "I'm lost. Can you give me directions to your heart?",
+            "Hey, how was heaven when you left it?"
+
+
+        ];
+        const MESSAGE_TITLE= "Finally..."; // <-- CHANGE THIS to your title
+        const YOUR_MESSAGE = "You made it to the end! \nJust wanted to say you're on my mind."; // <-- CHANGE THIS to your message
+        const YOUR_NAME    = "Alok"; // <-- CHANGE THIS to your name
+        // =================================================================
+
+        // --- Application Logic ---
+        const lockContainer = document.getElementById('lock-container');
+        const puzzleContainer = document.getElementById('puzzle-container');
+        const messageContainer = document.getElementById('message-container');
+
+        const keyHintText = document.getElementById('key-hint-text');
+        const keyInput = document.getElementById('key-input');
+        const unlockBtn = document.getElementById('unlock-btn');
+        const errorText = document.getElementById('error-text');
+        
+        const cardStack = document.getElementById('card-stack');
+        const nopeBtn = document.getElementById('nope-btn');
+        const yepBtn = document.getElementById('yep-btn');
+
+        let currentCardIndex = PICKUP_LINES.length - 1;
+        let isAnimating = false;
+
+        // --- Lock Screen Logic ---
+        keyHintText.textContent = KEY_HINT;
+        unlockBtn.addEventListener('click', () => {
+            if (keyInput.value.trim().toLowerCase() === SECRET_KEY.toLowerCase()) {
+                lockContainer.classList.add('hidden-view');
+                puzzleContainer.classList.remove('hidden-view');
+            } else {
+                errorText.textContent = "That's not it, try again!";
+                lockContainer.classList.add('shake');
+                keyInput.value = "";
+                setTimeout(() => {
+                    lockContainer.classList.remove('shake');
+                    errorText.textContent = "";
+                }, 1000);
+            }
+        });
+        keyInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') unlockBtn.click();
+        });
+
+
+        // --- Card Logic ---
+        function createCards() {
+            const topIndex = PICKUP_LINES.length - 1;
+            PICKUP_LINES.forEach((line, index) => {
+                const card = document.createElement('div');
+                card.className = 'pickup-card text-center';
+                card.innerHTML = `<p class="text-lg">${line}</p>`;
+                
+                const offset = topIndex - index;
+                card.style.zIndex = index;
+                card.style.transform = `translateY(${offset * 4}px) scale(${1 - (offset * 0.02)})`;
+                
+                cardStack.appendChild(card);
+            });
+        }
+
+        function dismissCard(directionStr) {
+            if (isAnimating || currentCardIndex < 0) return;
+            
+            isAnimating = true;
+            const activeCard = cardStack.lastElementChild;
+            if (!activeCard) return;
+
+            const direction = directionStr === 'right' ? 1 : -1;
+            activeCard.style.transition = 'transform 0.6s cubic-bezier(0.6, -0.28, 0.735, 0.045)';
+
+            const flingX = direction * (window.innerWidth / 2 + cardStack.offsetWidth / 2);
+            const flingY = -50;
+            const flingRotate = direction * 45;
+            activeCard.style.transform = `translateX(${flingX}px) translateY(${flingY}px) rotate(${flingRotate}deg)`;
+            
+            setTimeout(() => {
+                if (activeCard) activeCard.remove();
+                currentCardIndex--;
+                isAnimating = false;
+
+                if (currentCardIndex < 0) {
+                    document.getElementById('action-buttons').style.display = 'none';
+                    document.getElementById('instructions-text').style.display = 'none';
+                    unlockFinalMessage();
+                }
+            }, 600);
+        }
+
+        nopeBtn.addEventListener('click', () => dismissCard('left'));
+        yepBtn.addEventListener('click', () => dismissCard('right'));
+
+        // --- Confetti Logic ---
+        const confettiCanvas = document.getElementById('confetti-canvas');
+        const confettiCtx = confettiCanvas.getContext('2d');
+        let confettiParticles = [];
+        const confettiColors = ['#f472b6', '#ec4899', '#db2777', '#fda4af', '#fb7185'];
+        function resizeCanvas() {
+            confettiCanvas.width = messageContainer.offsetWidth;
+            confettiCanvas.height = messageContainer.offsetHeight;
+        }
+        function createConfetti() {
+            for (let i = 0; i < 200; i++) {
+                confettiParticles.push({
+                    x: confettiCanvas.width / 2, y: confettiCanvas.height / 2,
+                    vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
+                    size: Math.random() * 5 + 2, color: confettiColors[Math.floor(Math.random() * confettiColors.length)], alpha: 1
+                });
+            }
+        }
+        function animateConfetti() {
+            confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            confettiParticles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.alpha -= 0.01;
+                if (p.alpha <= 0) confettiParticles.splice(i, 1);
+                else {
+                    confettiCtx.globalAlpha = p.alpha;
+                    confettiCtx.fillStyle = p.color;
+                    confettiCtx.fillRect(p.x, p.y, p.size, p.size);
+                }
+            });
+            if (confettiParticles.length > 0) requestAnimationFrame(animateConfetti);
+            else confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        }
+
+        // --- Typewriter Logic ---
+        function typeWriter(element, text, fromElement, fromText, callback) {
+            let i = 0; element.innerHTML = "";
+            function type() {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i); i++;
+                    setTimeout(type, 50);
+                } else if (callback) callback(fromElement, fromText);
+            }
+            type();
+        }
+        function revealFrom(element, text) {
+             element.innerText = `- ${text}`;
+             element.style.transition = 'opacity 0.5s ease';
+             element.style.opacity = '1';
+        }
+
+        function unlockFinalMessage() {
+            setTimeout(() => {
+                 puzzleContainer.classList.add('hidden-view');
+                 messageContainer.classList.remove('hidden-view');
+                 resizeCanvas(); createConfetti(); animateConfetti();
+                 const titleEl = document.getElementById('revealed-title');
+                 const msgEl = document.getElementById('revealed-message');
+                 const fromEl = document.getElementById('revealed-from');
+                 titleEl.innerText = MESSAGE_TITLE;
+                 typeWriter(msgEl, YOUR_MESSAGE, fromEl, YOUR_NAME, revealFrom);
+            }, 200);
+        }
+        
+        createCards();
+    </script>
+</body>
+</html>
+
